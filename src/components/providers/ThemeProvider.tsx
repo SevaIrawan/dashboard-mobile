@@ -23,7 +23,7 @@ const STORAGE_KEY = "dashboard-theme";
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function getSystemTheme(): "light" | "dark" {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
@@ -38,9 +38,9 @@ function applyThemeClass(resolved: "light" | "dark") {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeName>("system");
+  const [theme, setThemeState] = useState<ThemeName>("dark");
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(
-    "light",
+    "dark",
   );
   const [ready, setReady] = useState(false);
 
@@ -48,7 +48,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const stored =
-        raw === "light" || raw === "dark" || raw === "system" ? raw : "system";
+        raw === "light" || raw === "dark" || raw === "system" ? raw : "dark";
       setThemeState(stored);
       const r = resolveTheme(stored);
       setResolvedTheme(r);

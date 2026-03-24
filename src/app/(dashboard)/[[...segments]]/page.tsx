@@ -81,7 +81,6 @@ export default async function MobileMockDashboardPage({
       <MobileHeaderMock
         marketLabel={market.label}
         username={userCtx.username}
-        userRole={userCtx.role}
         marketCode={market.code}
         companyName={SITE_COMPANY_NAME}
         logoSrc={SITE_LOGO_PUBLIC_PATH}

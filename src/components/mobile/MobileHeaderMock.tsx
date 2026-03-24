@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Building2, EllipsisVertical, Menu, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Building2, Menu, X } from "lucide-react";
 import { LogoutButton } from "@/components/dashboard/LogoutButton";
-import { ThemeToggleHeader } from "@/components/dashboard/ThemeToggleHeader";
 import { SITE_MARKET_FLAG_PATHS } from "@/lib/branding/site";
 import type { MarketCode } from "@/lib/markets/dashboard-data";
 import {
@@ -39,7 +38,6 @@ function formatHeaderTimestamp(date: Date): string {
 export function MobileHeaderMock({
   marketLabel,
   username,
-  userRole,
   marketCode,
   companyName,
   logoSrc,
@@ -47,7 +45,6 @@ export function MobileHeaderMock({
 }: {
   marketLabel: string;
   username: string;
-  userRole: string;
   marketCode: MarketCode;
   companyName: string;
   /** Path di `public/`, mis. `/brand/nexmax-logo.png` */
@@ -58,12 +55,10 @@ export function MobileHeaderMock({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [actionOpen, setActionOpen] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const [flagFailed, setFlagFailed] = useState(false);
   const [flagVariantIndex, setFlagVariantIndex] = useState(0);
   const [now, setNow] = useState("");
-  const actionsRef = useRef<HTMLDivElement | null>(null);
   const activeCode = marketCodeFromPathname(pathname);
   const primaryFlagSrc =
     SITE_MARKET_FLAG_PATHS[marketCode] ?? SITE_MARKET_FLAG_PATHS.overall;
@@ -115,17 +110,6 @@ export function MobileHeaderMock({
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen, closeMenu]);
 
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (!actionsRef.current) return;
-      if (!actionsRef.current.contains(e.target as Node)) {
-        setActionOpen(false);
-      }
-    }
-    if (actionOpen) document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [actionOpen]);
-
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 px-3 py-2 backdrop-blur-sm dark:border-slate-700 dark:bg-[#0f172a]/95">
@@ -149,10 +133,13 @@ export function MobileHeaderMock({
             </p>
           </div>
 
-          <ThemeToggleHeader size="sm" />
-          <div className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900">
+          <p className="max-w-[72px] truncate text-[11px] font-medium text-slate-500 dark:text-slate-300">
+            {username}
+          </p>
+
+          <div className="ml-auto inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-white/70 bg-white dark:bg-slate-900">
             {flagFailed ? (
-              <span className="text-base" aria-hidden>
+              <span className="text-sm" aria-hidden>
                 🇲🇾
               </span>
             ) : (
@@ -172,30 +159,6 @@ export function MobileHeaderMock({
             )}
           </div>
 
-          <div className="relative" ref={actionsRef}>
-            <button
-              type="button"
-              className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl bg-slate-100/70 text-slate-600 dark:bg-slate-800/70 dark:text-slate-300"
-              aria-label="More actions"
-              aria-expanded={actionOpen}
-              onClick={() => setActionOpen((prev) => !prev)}
-            >
-              <EllipsisVertical className="h-4 w-4" />
-            </button>
-            {actionOpen ? (
-              <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-900">
-                <div className="rounded-lg bg-slate-50 px-2.5 py-2 dark:bg-slate-800">
-                  <p className="truncate text-xs font-semibold uppercase text-slate-700 dark:text-slate-100">
-                    {userRole || "admin"}
-                  </p>
-                  <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
-                    {username}
-                  </p>
-                </div>
-                <LogoutButton className="mt-2 w-full justify-center" />
-              </div>
-            ) : null}
-          </div>
         </div>
       </header>
 
@@ -217,7 +180,7 @@ export function MobileHeaderMock({
               className="pointer-events-auto absolute left-0 top-0 flex h-full w-[88%] max-w-[20rem] flex-col border-r border-white/15 bg-[#1a222d] pb-[max(env(safe-area-inset-bottom),8px)] pl-[max(env(safe-area-inset-left),0px)] pt-0 shadow-2xl"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
-              <div className="flex items-start gap-2 border-b border-white/10 px-3 pb-3 pt-[max(env(safe-area-inset-top),12px)] sm:px-4">
+              <div className="flex items-start gap-2 border-b border-white/10 px-2.5 pb-3 pt-[max(env(safe-area-inset-top),12px)] sm:px-3">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-400/80 bg-[#131820]">
                     {logoFailed ? (
@@ -236,6 +199,14 @@ export function MobileHeaderMock({
                     <p className="truncate text-base font-semibold tracking-tight text-white">
                       {companyName}
                     </p>
+                    {dataUpdateLabel ? (
+                      <p className="mt-0.5 truncate text-[11px] text-white/60">
+                        Update:{" "}
+                        <span className="font-semibold text-white/85">
+                          {dataUpdateLabel}
+                        </span>
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <button
@@ -270,16 +241,9 @@ export function MobileHeaderMock({
                   })}
                 </ul>
               </nav>
-              {dataUpdateLabel ? (
-                <div className="mt-auto border-t border-white/10 px-4 py-3">
-                  <p className="text-[11px] text-white/55">
-                    Update:{" "}
-                    <span className="font-semibold text-white/90">
-                      {dataUpdateLabel}
-                    </span>
-                  </p>
-                </div>
-              ) : null}
+              <div className="mt-auto border-t border-white/10 px-4 py-3">
+                <LogoutButton className="w-full justify-center" />
+              </div>
             </aside>
           </div>
         </>
