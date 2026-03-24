@@ -537,3 +537,193 @@ export async function getLast7DaysBrandKpiData(
   return { brands, points, dateKeys };
 }
 
+type MemberRawRow = Record<string, unknown>;
+
+function pickString(row: MemberRawRow, keys: string[]): string | null {
+  for (const key of keys) {
+    const v = row[key];
+    if (typeof v === "string" && v.trim().length > 0) return v.trim();
+    if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  }
+  return null;
+}
+
+function toDayKey(raw: string | null): string | null {
+  if (!raw) return null;
+  const normalized = raw.trim();
+  if (normalized.length === 0) return null;
+  return normalized.slice(0, 10);
+}
+
+function inRange(dayKey: string | null, range: DateRange): boolean {
+  if (!dayKey) return false;
+  const parsed = parseDateOnly(dayKey);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return parsed.getTime() >= range.from.getTime() && parsed.getTime() <= range.to.getTime();
+}
+
+async function fetchMemberRowsInRange(
+  tableName: string,
+  from: Date,
+  to: Date,
+): Promise<MemberRawRow[]> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from(tableName)
+    .select("*")
+    .gte("date", toDateKey(from))
+    .lte("date", toDateKey(to));
+  if (error || !data) return [];
+  return data as MemberRawRow[];
+}
+
+type BrandUserSets = Map<string, Set<string>>;
+
+function pushToSetMap(map: BrandUserSets, key: string, userKey: string): void {
+  const set = map.get(key) ?? new Set<string>();
+  set.add(userKey);
+  map.set(key, set);
+}
+
+function countSetMap(map: BrandUserSets): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const [k, set] of map) out.set(k, set.size);
+  return out;
+}
+
+export type MemberBrandKpi = {
+  label: string;
+  value: number;
+  comparisonPct: number;
+  barPercent: number;
+};
+
+export type MemberGrowthSummary = {
+  activeTotal: number;
+  newDepositorTotal: number;
+  pureMemberTotal: number;
+  activeBrands: MemberBrandKpi[];
+  newDepositorBrands: MemberBrandKpi[];
+};
+
+function toBrandKpis(
+  keys: string[],
+  current: Map<string, number>,
+  compare: Map<string, number>,
+): MemberBrandKpi[] {
+  const raw = keys
+    .map((label) => {
+      const value = current.get(label) ?? 0;
+      const prev = compare.get(label) ?? 0;
+      return { label, value, comparisonPct: calcComparisonPct(value, prev) };
+    })
+    .sort((a, b) => b.value - a.value);
+
+  const maxAbs = raw.length > 0 ? Math.max(...raw.map((x) => Math.abs(x.comparisonPct)), 1) : 1;
+  return raw.map((x) => ({
+    ...x,
+    barPercent: clamp((Math.abs(x.comparisonPct) / maxAbs) * 100, 18, 100),
+  }));
+}
+
+export async function getMemberGrowthSummary(
+  market: MarketCode,
+  period: PeriodCode,
+): Promise<MemberGrowthSummary> {
+  const tables = tableNamesForMarket(market);
+  const latestDates = await Promise.all(tables.map((t) => fetchLatestDateFromTable(t)));
+  const validLatestDates = latestDates.filter((d): d is Date => d !== null);
+  if (validLatestDates.length === 0) {
+    return {
+      activeTotal: 0,
+      newDepositorTotal: 0,
+      pureMemberTotal: 0,
+      activeBrands: [],
+      newDepositorBrands: [],
+    };
+  }
+
+  const latestDate = validLatestDates.reduce((acc, curr) =>
+    curr.getTime() > acc.getTime() ? curr : acc,
+  );
+  const { current, compare } = getCurrentAndCompareRanges(period, latestDate);
+
+  const [currentPerTable, comparePerTable] = await Promise.all([
+    Promise.all(tables.map((t) => fetchMemberRowsInRange(t, current.from, current.to))),
+    Promise.all(tables.map((t) => fetchMemberRowsInRange(t, compare.from, compare.to))),
+  ]);
+
+  const currentRows = currentPerTable.flat();
+  const compareRows = comparePerTable.flat();
+
+  const userKeys = ["userkey", "user_key", "userid", "user_id", "member_id", "username"];
+  const firstDepositKeys = ["first_deposit_date", "firstdepositdate", "first_deposit", "fd_date"];
+
+  const currentActiveMarket = new Set<string>();
+  const currentNewMarket = new Set<string>();
+  const compareActiveMarket = new Set<string>();
+  const compareNewMarket = new Set<string>();
+
+  const currentActiveByLine: BrandUserSets = new Map();
+  const currentNewByLine: BrandUserSets = new Map();
+  const compareActiveByLine: BrandUserSets = new Map();
+  const compareNewByLine: BrandUserSets = new Map();
+
+  for (const row of currentRows) {
+    const userKey = pickString(row, userKeys);
+    if (!userKey) continue;
+    const line = pickString(row, ["line"]) ?? "Unknown";
+    const firstDeposit = toDayKey(pickString(row, firstDepositKeys));
+    currentActiveMarket.add(userKey);
+    pushToSetMap(currentActiveByLine, line, userKey);
+    if (inRange(firstDeposit, current)) {
+      currentNewMarket.add(userKey);
+      pushToSetMap(currentNewByLine, line, userKey);
+    }
+  }
+
+  for (const row of compareRows) {
+    const userKey = pickString(row, userKeys);
+    if (!userKey) continue;
+    const line = pickString(row, ["line"]) ?? "Unknown";
+    const firstDeposit = toDayKey(pickString(row, firstDepositKeys));
+    compareActiveMarket.add(userKey);
+    pushToSetMap(compareActiveByLine, line, userKey);
+    if (inRange(firstDeposit, compare)) {
+      compareNewMarket.add(userKey);
+      pushToSetMap(compareNewByLine, line, userKey);
+    }
+  }
+
+  const activeTotal = currentActiveMarket.size;
+  const newDepositorTotal = currentNewMarket.size;
+  const pureMemberTotal = Math.max(activeTotal - newDepositorTotal, 0);
+
+  // Pakai basis brand aktif agar panel Active/New konsisten jumlah card-nya.
+  const baseLineKeys = Array.from(
+    new Set([
+      ...currentActiveByLine.keys(),
+      ...compareActiveByLine.keys(),
+      ...currentNewByLine.keys(),
+      ...compareNewByLine.keys(),
+    ]),
+  ).sort();
+
+  return {
+    activeTotal,
+    newDepositorTotal,
+    pureMemberTotal,
+    activeBrands: toBrandKpis(
+      baseLineKeys,
+      countSetMap(currentActiveByLine),
+      countSetMap(compareActiveByLine),
+    ),
+    newDepositorBrands: toBrandKpis(
+      baseLineKeys,
+      countSetMap(currentNewByLine),
+      countSetMap(compareNewByLine),
+    ),
+  };
+}
+

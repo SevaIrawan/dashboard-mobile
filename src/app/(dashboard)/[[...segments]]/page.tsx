@@ -1,8 +1,8 @@
 import { MobileHeaderMock } from "@/components/mobile/MobileHeaderMock";
 import { NetProfitLineCarousel } from "@/components/mobile/NetProfitLineCarousel";
 import { PeriodTabsMock } from "@/components/mobile/PeriodTabsMock";
+import { MemberGrowthPanel } from "@/components/mobile/MemberGrowthPanel";
 import { BrandKpiCarousel } from "@/components/mobile/BrandKpiCarousel";
-import { CircleGauge, Dot } from "lucide-react";
 import { redirect } from "next/navigation";
 import {
   SITE_COMPANY_NAME,
@@ -10,12 +10,11 @@ import {
 } from "@/lib/branding/site";
 import {
   formatSidebarUpdateDate,
-  getLatestBlueWhaleUscDate,
   getLast7DaysBrandKpiData,
-  getMarketRows,
+  getLatestBlueWhaleUscDate,
+  getMemberGrowthSummary,
   getNetProfitKpiSummary,
   getUserHeaderContext,
-  summarizeRows,
   type MarketCode,
   type PeriodCode,
 } from "@/lib/markets/dashboard-data";
@@ -60,18 +59,17 @@ export default async function MobileMockDashboardPage({
       ? rawPeriod
       : "monthly";
 
-  const [rows, userCtx, uscLatestDateRaw, netProfitKpi, kpiLast7Days] =
+  const [userCtx, uscLatestDateRaw, netProfitKpi, memberGrowth, brandKpiData] =
     await Promise.all([
-    getMarketRows(market.code, period),
     getUserHeaderContext(),
     getLatestBlueWhaleUscDate(),
     getNetProfitKpiSummary(market.code, period),
+    getMemberGrowthSummary(market.code, period),
     getLast7DaysBrandKpiData(market.code),
   ]);
   const dataUpdateLabel = uscLatestDateRaw
     ? formatSidebarUpdateDate(uscLatestDateRaw)
     : null;
-  const summary = summarizeRows(rows);
   const currencyCode = getMarketCurrency(market.code);
 
   return (
@@ -111,71 +109,18 @@ export default async function MobileMockDashboardPage({
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-              Today&apos;s Increase
-            </h2>
-            <button
-              type="button"
-              className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-600 dark:text-slate-200"
-            >
-              Details
-            </button>
-          </div>
-
-          <div className="mt-4 grid grid-cols-[1fr_auto] gap-4">
-            <div className="flex items-center justify-center">
-              <div
-                className="relative h-36 w-36 rounded-full"
-                style={{
-                  background:
-                    "conic-gradient(#f97316 0 36%, #0d244a 36% 62%, #cbd5e1 62% 100%)",
-                }}
-              >
-                <div className="absolute inset-[18%] rounded-full bg-white dark:bg-slate-900" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <p className="text-3xl font-bold text-slate-900 dark:text-white">
-                    {formatInt(summary.totalSales)}
-                  </p>
-                  <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                    Total Sales
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2 text-xs">
-              <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                <Dot className="h-4 w-4 text-orange-500" /> Duckticket
-              </p>
-              <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                <Dot className="h-4 w-4 text-[#0d244a]" /> Seevent
-              </p>
-              <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                <Dot className="h-4 w-4 text-slate-400" /> Ticketing
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {["Billing", "Top Country", "Target"].map((label) => (
-              <div
-                key={label}
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-2 text-center dark:border-slate-700 dark:bg-slate-800"
-              >
-                <CircleGauge className="mx-auto h-4 w-4 text-[#0d244a] dark:text-amber-300" />
-                <p className="mt-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
+        <MemberGrowthPanel
+          activeTotal={memberGrowth.activeTotal}
+          newDepositorTotal={memberGrowth.newDepositorTotal}
+          pureMemberTotal={memberGrowth.pureMemberTotal}
+          activeBrands={memberGrowth.activeBrands}
+          newDepositorBrands={memberGrowth.newDepositorBrands}
+        />
 
         <BrandKpiCarousel
-          brands={kpiLast7Days.brands}
-          points={kpiLast7Days.points}
-          dateKeys={kpiLast7Days.dateKeys}
+          brands={brandKpiData.brands}
+          points={brandKpiData.points}
+          dateKeys={brandKpiData.dateKeys}
         />
       </div>
     </div>

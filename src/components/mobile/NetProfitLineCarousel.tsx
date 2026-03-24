@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { NetProfitLineKpi } from "@/lib/markets/dashboard-data";
+
+export type NetProfitLineCarouselHandle = {
+  scrollPrev: () => void;
+  scrollNext: () => void;
+};
 
 function formatInt(v: number): string {
   return Math.round(v).toLocaleString("id-ID");
@@ -15,20 +26,30 @@ function formatPct(v: number): string {
 type Props = {
   items: NetProfitLineKpi[];
   controlsAtTop?: boolean;
+  /** Jangan render tombol panah di dalam carousel (pakai ref dari parent). */
+  omitControls?: boolean;
   metaLabel?: string;
   metaComparison?: string;
   metaComparisonPositive?: boolean;
 };
 
-export function NetProfitLineCarousel({
-  items,
-  controlsAtTop = false,
-  metaLabel,
-  metaComparison,
-  metaComparisonPositive = true,
-}: Props) {
+export const NetProfitLineCarousel = forwardRef<
+  NetProfitLineCarouselHandle,
+  Props
+>(function NetProfitLineCarousel(
+  {
+    items,
+    controlsAtTop = false,
+    omitControls = false,
+    metaLabel,
+    metaComparison,
+    metaComparisonPositive = true,
+  },
+  ref,
+) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const idleTimerRef = useRef<number | null>(null);
+  const scrollRafRef = useRef<number | null>(null);
   const [index, setIndex] = useState(0);
   const [autoplayEnabled, setAutoplayEnabled] = useState(false);
   const maxIndex = Math.max(items.length - 2, 0);
@@ -59,10 +80,56 @@ export function NetProfitLineCarousel({
     }, 20000);
   }
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollPrev: () => {
+        armAutoplayAfterIdle();
+        setIndex((prev) => {
+          const idx = Math.max(0, prev - 1);
+          scrollNodeToIndex(idx);
+          return idx;
+        });
+      },
+      scrollNext: () => {
+        armAutoplayAfterIdle();
+        setIndex((prev) => {
+          const idx = Math.min(maxIndex, prev + 1);
+          scrollNodeToIndex(idx);
+          return idx;
+        });
+      },
+    }),
+    [maxIndex],
+  );
+
+  function syncIndexFromScroll() {
+    const track = trackRef.current;
+    if (!track) return;
+    const cards = track.querySelectorAll("article");
+    if (cards.length === 0) return;
+
+    let nearest = 0;
+    let minDistance = Number.POSITIVE_INFINITY;
+    const left = track.scrollLeft;
+    cards.forEach((node, idx) => {
+      const el = node as HTMLElement;
+      const distance = Math.abs(el.offsetLeft - left);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearest = idx;
+      }
+    });
+
+    const next = Math.max(0, Math.min(maxIndex, nearest));
+    setIndex(next);
+  }
+
   useEffect(() => {
     armAutoplayAfterIdle();
     return () => {
       if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+      if (scrollRafRef.current) window.cancelAnimationFrame(scrollRafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -89,8 +156,8 @@ export function NetProfitLineCarousel({
 
   return (
     <div>
-      {controlsAtTop && items.length > 2 ? (
-        <div className="mb-2 flex items-end justify-between gap-2">
+      {controlsAtTop && !omitControls && items.length > 2 ? (
+        <div className="mb-2 flex items-center justify-between gap-2">
           <div className="min-w-0">
             {metaLabel ? (
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -142,6 +209,12 @@ export function NetProfitLineCarousel({
           className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           onTouchStart={armAutoplayAfterIdle}
           onPointerDown={armAutoplayAfterIdle}
+          onScroll={() => {
+            if (scrollRafRef.current) window.cancelAnimationFrame(scrollRafRef.current);
+            scrollRafRef.current = window.requestAnimationFrame(() => {
+              syncIndexFromScroll();
+            });
+          }}
         >
           {items.map((item) => {
             const positive = item.comparisonPct >= 0;
@@ -177,7 +250,7 @@ export function NetProfitLineCarousel({
         </div>
       </div>
 
-      {!controlsAtTop && items.length > 2 ? (
+      {!controlsAtTop && !omitControls && items.length > 2 ? (
         <div className="mt-2 flex justify-end gap-1.5">
           <button
             type="button"
@@ -205,4 +278,4 @@ export function NetProfitLineCarousel({
       ) : null}
     </div>
   );
-}
+});

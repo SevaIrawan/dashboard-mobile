@@ -1,8 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
-import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Last7DaysBrandPoint } from "@/lib/markets/dashboard-data";
 
 type MetricKey =
@@ -51,7 +61,7 @@ function formatDayLabel(dateKey: string): string {
 
 function formatValue(value: number, isPercent?: boolean): string {
   if (isPercent) return `${value.toFixed(2)}%`;
-  return Math.round(value).toLocaleString("id-ID");
+  return Math.round(value).toLocaleString("en-US");
 }
 
 function metricValue(point: Last7DaysBrandPoint, metric: MetricKey): number {
@@ -68,15 +78,40 @@ function metricValue(point: Last7DaysBrandPoint, metric: MetricKey): number {
 }
 
 export function BrandKpiCarousel({ brands, points, dateKeys }: Props) {
+  const ALL_BRANDS = "__all__";
   const idleTimerRef = useRef<number | null>(null);
-  const [brand, setBrand] = useState(brands[0] ?? "Unknown");
+  const brandMenuRef = useRef<HTMLDivElement | null>(null);
+  const [brand, setBrand] = useState(brands[0] ?? ALL_BRANDS);
+  const [brandMenuOpen, setBrandMenuOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [autoplayEnabled, setAutoplayEnabled] = useState(false);
 
   useEffect(() => {
-    setBrand((prev) => (brands.includes(prev) ? prev : (brands[0] ?? "Unknown")));
+    setBrand((prev) =>
+      prev === ALL_BRANDS || brands.includes(prev) ? prev : (brands[0] ?? ALL_BRANDS),
+    );
   }, [brands]);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!brandMenuRef.current) return;
+      if (!brandMenuRef.current.contains(e.target as Node)) {
+        setBrandMenuOpen(false);
+      }
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setBrandMenuOpen(false);
+    }
+    if (brandMenuOpen) {
+      document.addEventListener("mousedown", onDocClick);
+      window.addEventListener("keydown", onEsc);
+    }
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener("keydown", onEsc);
+    };
+  }, [brandMenuOpen]);
 
   function armAutoplayAfterIdle() {
     setAutoplayEnabled(false);
@@ -105,8 +140,22 @@ export function BrandKpiCarousel({ brands, points, dateKeys }: Props) {
   const pointsByDate = useMemo(() => {
     const map = new Map<string, Last7DaysBrandPoint>();
     for (const row of points) {
-      if (row.line !== brand) continue;
-      map.set(row.date, row);
+      if (brand !== ALL_BRANDS && row.line !== brand) continue;
+      const curr = map.get(row.date) ?? {
+        date: row.date,
+        line: brand === ALL_BRANDS ? "All" : row.line,
+        deposit_cases: 0,
+        deposit_amount: 0,
+        withdraw_cases: 0,
+        withdraw_amount: 0,
+        net_profit: 0,
+      };
+      curr.deposit_cases += row.deposit_cases;
+      curr.deposit_amount += row.deposit_amount;
+      curr.withdraw_cases += row.withdraw_cases;
+      curr.withdraw_amount += row.withdraw_amount;
+      curr.net_profit += row.net_profit;
+      map.set(row.date, curr);
     }
     return map;
   }, [points, brand]);
@@ -131,8 +180,6 @@ export function BrandKpiCarousel({ brands, points, dateKeys }: Props) {
       }),
     [dateKeys, pointsByDate, brand, activeDef.key],
   );
-
-  const latestValue = chartData.length > 0 ? chartData[chartData.length - 1]!.value : 0;
 
   function prevCard() {
     armAutoplayAfterIdle();
@@ -160,6 +207,10 @@ export function BrandKpiCarousel({ brands, points, dateKeys }: Props) {
     if (delta < 0) nextCard();
   }
 
+  const axisStroke = "rgba(148,163,184,0.45)";
+  const chartMargin = { top: 8, right: 14, left: 6, bottom: 10 };
+  const xAxisPadding = { left: 14, right: 14 };
+
   if (brands.length === 0 || dateKeys.length === 0) {
     return (
       <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -174,28 +225,58 @@ export function BrandKpiCarousel({ brands, points, dateKeys }: Props) {
     <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold text-slate-900 dark:text-white">{activeDef.title}</p>
-        <label className="sr-only" htmlFor="brand-picker">
-          Pilih Brand
-        </label>
-        <select
-          id="brand-picker"
-          value={brand}
-          onChange={(e) => {
-            armAutoplayAfterIdle();
-            setBrand(e.target.value);
-          }}
-          className="rounded-full border border-slate-300 bg-transparent px-3 py-1 text-[11px] font-semibold text-slate-800 outline-none dark:border-slate-500 dark:bg-[#0b1730] dark:text-white"
-        >
-          {brands.map((item) => (
-            <option
-              key={item}
-              value={item}
-              className="bg-white text-slate-900 dark:bg-[#0b1730] dark:text-white"
+        <div className="relative" ref={brandMenuRef}>
+          <button
+            type="button"
+            onClick={() => {
+              armAutoplayAfterIdle();
+              setBrandMenuOpen((prev) => !prev);
+            }}
+            className="inline-flex min-w-[96px] max-w-[130px] items-center justify-between gap-2 rounded-full border border-slate-300 bg-transparent px-3 py-1 text-[11px] font-semibold text-slate-800 dark:border-slate-500 dark:bg-[#0b1730] dark:text-white"
+            aria-expanded={brandMenuOpen}
+            aria-haspopup="listbox"
+          >
+            <span className="truncate">{brand === ALL_BRANDS ? "All" : brand}</span>
+            <ChevronDown
+              className={`h-3.5 w-3.5 shrink-0 transition-transform ${
+                brandMenuOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {brandMenuOpen ? (
+            <div
+              className="absolute right-0 top-[calc(100%+6px)] z-20 w-[160px] overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl dark:border-slate-600 dark:bg-[#0b1730]"
+              role="listbox"
+              aria-label="Brand options"
             >
-              {item}
-            </option>
-          ))}
-        </select>
+              <div className="max-h-48 overflow-y-auto py-1">
+                {[ALL_BRANDS, ...brands].map((item) => {
+                  const selected = item === brand;
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => {
+                        armAutoplayAfterIdle();
+                        setBrand(item);
+                        setBrandMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between px-3 py-2 text-left text-[11px] font-semibold ${
+                        selected
+                          ? "bg-[#0d4aa3] text-white"
+                          : "text-slate-700 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <span className="truncate">{item === ALL_BRANDS ? "All" : item}</span>
+                      {selected ? <Check className="h-3.5 w-3.5 shrink-0" /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-1 flex items-center justify-between gap-2">
@@ -221,24 +302,45 @@ export function BrandKpiCarousel({ brands, points, dateKeys }: Props) {
       </div>
 
       <div
-        className="mt-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60"
+        className="mt-3 rounded-2xl border border-slate-100 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800/60"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        <p className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-          {formatValue(latestValue, activeDef.isPercent)}
-        </p>
-        <div className="mt-2 h-44 w-full">
+        <div className="h-52 w-full min-h-[13rem]">
           <ResponsiveContainer width="100%" height="100%">
             {activeDef.chart === "line" ? (
-              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <LineChart data={chartData} margin={chartMargin}>
+                <CartesianGrid strokeDasharray="3 4" stroke="rgba(148,163,184,0.25)" vertical horizontal />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 11, fill: "#cbd5e1" }}
-                  axisLine={false}
-                  tickLine={false}
+                  interval={0}
+                  minTickGap={0}
+                  tick={{ fontSize: 10, fill: "#cbd5e1" }}
+                  axisLine={{ stroke: axisStroke, strokeWidth: 1 }}
+                  tickLine={{ stroke: axisStroke, strokeWidth: 1 }}
+                  tickMargin={8}
+                  padding={xAxisPadding}
                 />
-                <YAxis hide domain={["auto", "auto"]} />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fontSize: 10, fill: "#cbd5e1" }}
+                  axisLine={{ stroke: axisStroke, strokeWidth: 1 }}
+                  tickLine={{ stroke: axisStroke, strokeWidth: 1 }}
+                  width={40}
+                  domain={["auto", "auto"]}
+                  tickFormatter={(v) =>
+                    activeDef.isPercent ? `${Math.round(Number(v))}%` : formatValue(Number(v), false)
+                  }
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={false}
+                  tickLine={false}
+                  axisLine={{ stroke: axisStroke, strokeWidth: 1 }}
+                  width={1}
+                  domain={["auto", "auto"]}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "#ffffff",
@@ -251,9 +353,10 @@ export function BrandKpiCarousel({ brands, points, dateKeys }: Props) {
                   itemStyle={{ color: activeDef.color }}
                   labelStyle={{ color: "#334155", fontWeight: 700 }}
                   formatter={(v) => [formatValue(Number(v), activeDef.isPercent), activeDef.title]}
-                  labelFormatter={(label) => `Tanggal ${label}`}
+                  labelFormatter={(label) => `Date ${label}`}
                 />
                 <Line
+                  yAxisId="left"
                   type="monotone"
                   dataKey="value"
                   stroke={activeDef.color}
@@ -263,14 +366,38 @@ export function BrandKpiCarousel({ brands, points, dateKeys }: Props) {
                 />
               </LineChart>
             ) : (
-              <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <BarChart data={chartData} margin={chartMargin}>
+                <CartesianGrid strokeDasharray="3 4" stroke="rgba(148,163,184,0.25)" vertical horizontal />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 11, fill: "#cbd5e1" }}
-                  axisLine={false}
-                  tickLine={false}
+                  interval={0}
+                  minTickGap={0}
+                  tick={{ fontSize: 10, fill: "#cbd5e1" }}
+                  axisLine={{ stroke: axisStroke, strokeWidth: 1 }}
+                  tickLine={{ stroke: axisStroke, strokeWidth: 1 }}
+                  tickMargin={8}
+                  padding={xAxisPadding}
                 />
-                <YAxis hide domain={["auto", "auto"]} />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fontSize: 10, fill: "#cbd5e1" }}
+                  axisLine={{ stroke: axisStroke, strokeWidth: 1 }}
+                  tickLine={{ stroke: axisStroke, strokeWidth: 1 }}
+                  width={40}
+                  domain={["auto", "auto"]}
+                  tickFormatter={(v) =>
+                    activeDef.isPercent ? `${Math.round(Number(v))}%` : formatValue(Number(v), false)
+                  }
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={false}
+                  tickLine={false}
+                  axisLine={{ stroke: axisStroke, strokeWidth: 1 }}
+                  width={1}
+                  domain={["auto", "auto"]}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "#ffffff",
@@ -283,9 +410,9 @@ export function BrandKpiCarousel({ brands, points, dateKeys }: Props) {
                   itemStyle={{ color: activeDef.color }}
                   labelStyle={{ color: "#334155", fontWeight: 700 }}
                   formatter={(v) => [formatValue(Number(v), activeDef.isPercent), activeDef.title]}
-                  labelFormatter={(label) => `Tanggal ${label}`}
+                  labelFormatter={(label) => `Date ${label}`}
                 />
-                <Bar dataKey="value" fill={activeDef.color} radius={[5, 5, 0, 0]} />
+                <Bar yAxisId="left" dataKey="value" fill={activeDef.color} radius={[5, 5, 0, 0]} />
               </BarChart>
             )}
           </ResponsiveContainer>
