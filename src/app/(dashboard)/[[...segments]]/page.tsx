@@ -88,7 +88,7 @@ export default async function MobileMockDashboardPage({
         dataUpdateLabel={dataUpdateLabel}
       />
 
-      <div className="flex-1 space-y-4 overflow-hidden px-3 py-3">
+      <div className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-3 py-3">
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center justify-between gap-3">
             <div>

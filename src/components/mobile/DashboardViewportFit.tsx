@@ -9,6 +9,7 @@ type Props = {
 export function DashboardViewportFit({ children }: Props) {
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
+  const [desktopFitMode, setDesktopFitMode] = useState(false);
 
   useEffect(() => {
     function recalc() {
@@ -17,6 +18,15 @@ export function DashboardViewportFit({ children }: Props) {
 
       const vw = window.visualViewport?.width ?? window.innerWidth;
       const vh = window.visualViewport?.height ?? window.innerHeight;
+
+      // Di HP/tablet kecil: gunakan lebar perangkat penuh, tanpa scaling.
+      if (vw <= 500) {
+        setDesktopFitMode(false);
+        setScale(1);
+        return;
+      }
+
+      setDesktopFitMode(true);
       const contentWidth = el.offsetWidth || 430;
       const contentHeight = el.scrollHeight || 1;
       const fit = Math.min((vw - 8) / contentWidth, (vh - 8) / contentHeight, 1);
@@ -43,11 +53,17 @@ export function DashboardViewportFit({ children }: Props) {
     <div className="app-backdrop flex h-[100svh] min-h-[100svh] w-full items-start justify-center overflow-hidden supports-[height:100dvh]:h-[100dvh] supports-[min-height:100dvh]:min-h-[100dvh]">
       <div
         className="origin-top"
-        style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
+        style={
+          desktopFitMode
+            ? { transform: `scale(${scale})`, transformOrigin: "top center" }
+            : undefined
+        }
       >
         <div
           ref={contentRef}
-          className="flex w-[430px] max-w-[430px] flex-col overflow-hidden border-x border-slate-200 bg-[#f5f7fb] shadow-[0_0_40px_rgba(15,23,42,0.2)] dark:border-slate-700 dark:bg-[#0b1220]"
+          className={`flex flex-col overflow-hidden border-x border-slate-200 bg-[#f5f7fb] shadow-[0_0_40px_rgba(15,23,42,0.2)] dark:border-slate-700 dark:bg-[#0b1220] ${
+            desktopFitMode ? "w-[430px] max-w-[430px]" : "w-[min(100vw,430px)]"
+          }`}
         >
           {children}
         </div>
