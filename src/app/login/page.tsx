@@ -2,11 +2,19 @@ import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SITE_COMPANY_NAME, SITE_LOGO_PUBLIC_PATH } from "@/lib/branding/site";
 import { getDashboardSession } from "@/lib/auth/dashboard-session";
+import {
+  getDefaultDashboardPathForRole,
+  normalizeDashboardRole,
+} from "@/lib/auth/role-permissions";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export default async function LoginPage() {
   const dashboardSession = await getDashboardSession();
-  if (dashboardSession) redirect("/myr");
+  if (dashboardSession) {
+    redirect(
+      getDefaultDashboardPathForRole(normalizeDashboardRole(dashboardSession.role)),
+    );
+  }
 
   const supabase = await createServerSupabase();
   if (supabase) {

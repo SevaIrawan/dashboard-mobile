@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { setDashboardSession } from "@/lib/auth/dashboard-session";
+import {
+  getDefaultDashboardPathForRole,
+  normalizeDashboardRole,
+} from "@/lib/auth/role-permissions";
 
 function pickValue(row: Record<string, unknown>, keys: string[]): string {
   for (const key of keys) {
@@ -56,11 +60,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const role =
+  const roleRaw =
     pickValue(matched, ["role", "user_role", "usertype", "position", "level"]) ||
     "admin";
+  const role = normalizeDashboardRole(roleRaw);
 
   await setDashboardSession({ username, role });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    redirectTo: getDefaultDashboardPathForRole(role),
+  });
 }

@@ -1,5 +1,10 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import { getDashboardSession } from "@/lib/auth/dashboard-session";
+import {
+  getAllowedMarketsForRole,
+  normalizeDashboardRole,
+} from "@/lib/auth/role-permissions";
+import type { SingleMarketCode } from "@/lib/auth/role-permissions";
 
 export type MarketCode = "overall" | "usc" | "sgd" | "myr";
 export type PeriodCode = "daily" | "weekly" | "monthly" | "annually";
@@ -308,7 +313,9 @@ export async function getWelcomeUsername(): Promise<string> {
 
 export type UserHeaderContext = {
   username: string;
+  /** Role ternormalisasi (huruf kecil, konsisten untuk permission). */
   role: string;
+  allowedMarkets: SingleMarketCode[];
 };
 
 function pickUserRole(row: Record<string, unknown> | null | undefined): string {
@@ -326,10 +333,24 @@ function pickUserRole(row: Record<string, unknown> | null | undefined): string {
 
 export async function getUserHeaderContext(): Promise<UserHeaderContext> {
   const session = await getDashboardSession();
-  if (session) return { username: session.username, role: session.role };
+  if (session) {
+    const role = normalizeDashboardRole(session.role);
+    return {
+      username: session.username,
+      role,
+      allowedMarkets: getAllowedMarketsForRole(role),
+    };
+  }
 
   const supabase = await createServerSupabase();
-  if (!supabase) return { username: "admin", role: "admin" };
+  if (!supabase) {
+    const role = normalizeDashboardRole("admin");
+    return {
+      username: "admin",
+      role,
+      allowedMarkets: getAllowedMarketsForRole(role),
+    };
+  }
 
   const { data, error } = await supabase
     .from("users")
@@ -338,14 +359,25 @@ export async function getUserHeaderContext(): Promise<UserHeaderContext> {
     .limit(1)
     .maybeSingle();
 
-  if (error || !data) return { username: "admin", role: "admin" };
+  if (error || !data) {
+    const role = normalizeDashboardRole("admin");
+    return {
+      username: "admin",
+      role,
+      allowedMarkets: getAllowedMarketsForRole(role),
+    };
+  }
   const row = data as Record<string, unknown>;
   const username =
     typeof row.username === "string" && row.username.trim().length > 0
       ? row.username.trim()
       : "admin";
-  const role = pickUserRole(row);
-  return { username, role };
+  const role = normalizeDashboardRole(pickUserRole(row));
+  return {
+    username,
+    role,
+    allowedMarkets: getAllowedMarketsForRole(role),
+  };
 }
 
 /** Nilai `date` terbaru di `blue_whale_usc` (untuk teks Update di sidebar). */

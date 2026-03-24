@@ -1,8 +1,9 @@
+import type { SingleMarketCode } from "@/lib/auth/role-permissions";
 import type { MarketCode } from "@/lib/markets/dashboard-data";
 
-/** Empat menu utama di drawer hamburger — selaras dengan routing `[[...segments]]`. */
+/** Item menu di drawer hamburger — selaras dengan routing `[[...segments]]`. */
 export const MARKET_DRAWER_ITEMS: {
-  code: MarketCode;
+  code: SingleMarketCode;
   label: string;
   path: string;
 }[] = [

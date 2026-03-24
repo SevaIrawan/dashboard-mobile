@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Building2, Menu, X } from "lucide-react";
 import { LogoutButton } from "@/components/dashboard/LogoutButton";
 import { SITE_MARKET_FLAG_PATHS } from "@/lib/branding/site";
+import type { SingleMarketCode } from "@/lib/auth/role-permissions";
 import type { MarketCode } from "@/lib/markets/dashboard-data";
 import {
   MARKET_DRAWER_ITEMS,
@@ -39,6 +40,7 @@ export function MobileHeaderMock({
   marketLabel,
   username,
   marketCode,
+  allowedMarketCodes,
   companyName,
   logoSrc,
   dataUpdateLabel,
@@ -46,6 +48,8 @@ export function MobileHeaderMock({
   marketLabel: string;
   username: string;
   marketCode: MarketCode;
+  /** Market yang boleh dipilih di drawer (sesuai role). */
+  allowedMarketCodes: SingleMarketCode[];
   companyName: string;
   /** Path di `public/`, mis. `/brand/nexmax-logo.png` */
   logoSrc: string;
@@ -60,6 +64,10 @@ export function MobileHeaderMock({
   const [flagVariantIndex, setFlagVariantIndex] = useState(0);
   const [now, setNow] = useState("");
   const activeCode = marketCodeFromPathname(pathname);
+  const allowed = new Set(allowedMarketCodes);
+  const drawerItems = MARKET_DRAWER_ITEMS.filter((item) =>
+    allowed.has(item.code),
+  );
   const primaryFlagSrc =
     SITE_MARKET_FLAG_PATHS[marketCode] ?? SITE_MARKET_FLAG_PATHS.overall;
   const flagCandidates = [
@@ -220,7 +228,7 @@ export function MobileHeaderMock({
               </div>
               <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label="Market">
                 <ul className="space-y-1">
-                  {MARKET_DRAWER_ITEMS.map((item) => {
+                  {drawerItems.map((item) => {
                     const href = marketDrawerHref(item.path, searchParams);
                     const active = item.code === activeCode;
                     return (

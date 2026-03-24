@@ -34,7 +34,7 @@ export function LoginForm() {
         }),
       });
       const result = (await response.json().catch(() => null)) as
-        | { ok?: boolean; message?: string }
+        | { ok?: boolean; message?: string; redirectTo?: string }
         | null;
       if (!response.ok || !result?.ok) {
         setErrorMessage(result?.message || "Login gagal. Coba lagi.");
@@ -42,7 +42,11 @@ export function LoginForm() {
       }
 
       router.refresh();
-      router.replace("/myr");
+      router.replace(
+        typeof result.redirectTo === "string" && result.redirectTo.startsWith("/")
+          ? result.redirectTo
+          : "/myr",
+      );
     } catch {
       setErrorMessage("Terjadi kendala saat login. Coba lagi beberapa saat.");
     } finally {

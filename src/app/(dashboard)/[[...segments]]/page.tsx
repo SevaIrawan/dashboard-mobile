@@ -8,6 +8,8 @@ import {
   SITE_COMPANY_NAME,
   SITE_LOGO_PUBLIC_PATH,
 } from "@/lib/branding/site";
+import { getDefaultDashboardPathForRole } from "@/lib/auth/role-permissions";
+import type { SingleMarketCode } from "@/lib/auth/role-permissions";
 import {
   formatSidebarUpdateDate,
   getLast7DaysBrandKpiData,
@@ -46,11 +48,31 @@ export default async function MobileMockDashboardPage({
   searchParams,
 }: Props) {
   const { segments } = await params;
-  const { period: rawPeriod } = await searchParams;
+  const sp = await searchParams;
+  const { period: rawPeriod } = sp;
 
   const firstSeg = segments?.[0]?.toLowerCase() ?? "myr";
   if (firstSeg === "overall") redirect("/myr");
   const market = marketMap[firstSeg] ?? marketMap.myr;
+
+  const userCtx = await getUserHeaderContext();
+  const allowed = new Set(userCtx.allowedMarkets);
+  const currentMarket = market.code as SingleMarketCode;
+  if (!allowed.has(currentMarket)) {
+    const path = getDefaultDashboardPathForRole(userCtx.role);
+    const q = new URLSearchParams();
+    if (
+      rawPeriod === "daily" ||
+      rawPeriod === "weekly" ||
+      rawPeriod === "monthly" ||
+      rawPeriod === "annually"
+    ) {
+      q.set("period", rawPeriod);
+    }
+    const qs = q.toString();
+    redirect(qs ? `${path}?${qs}` : path);
+  }
+
   const period: PeriodCode =
     rawPeriod === "daily" ||
     rawPeriod === "weekly" ||
@@ -59,9 +81,8 @@ export default async function MobileMockDashboardPage({
       ? rawPeriod
       : "monthly";
 
-  const [userCtx, uscLatestDateRaw, netProfitKpi, memberGrowth, brandKpiData] =
+  const [uscLatestDateRaw, netProfitKpi, memberGrowth, brandKpiData] =
     await Promise.all([
-    getUserHeaderContext(),
     getLatestBlueWhaleUscDate(),
     getNetProfitKpiSummary(market.code, period),
     getMemberGrowthSummary(market.code, period),
@@ -78,6 +99,7 @@ export default async function MobileMockDashboardPage({
         marketLabel={market.label}
         username={userCtx.username}
         marketCode={market.code}
+        allowedMarketCodes={userCtx.allowedMarkets}
         companyName={SITE_COMPANY_NAME}
         logoSrc={SITE_LOGO_PUBLIC_PATH}
         dataUpdateLabel={dataUpdateLabel}
