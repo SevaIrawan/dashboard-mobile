@@ -132,7 +132,7 @@ export function MemberGrowthPanel({
           </div>
         )}
 
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 grid grid-cols-3 gap-2">
           {(
             [
               { id: "growth", label: "Member Growth" },
@@ -146,13 +146,15 @@ export function MemberGrowthPanel({
               onClick={() => {
                 setMode(opt.id);
               }}
-              className={`min-w-0 flex-1 whitespace-nowrap rounded-full px-2 py-1.5 text-[11px] font-semibold transition ${
+              className={`inline-flex h-9 min-w-0 items-center justify-center rounded-full px-3 text-center text-[10px] font-semibold leading-none transition sm:text-[11px] ${
                 mode === opt.id
                   ? "bg-[#0d4aa3] text-white ring-1 ring-[#6da8ff]/70"
                   : "border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300"
               }`}
             >
-              {opt.label}
+              <span className="block w-full truncate text-center whitespace-nowrap">
+                {opt.label}
+              </span>
             </button>
           ))}
         </div>
