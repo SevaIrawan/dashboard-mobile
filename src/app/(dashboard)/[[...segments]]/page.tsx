@@ -1,6 +1,7 @@
 import { MobileHeaderMock } from "@/components/mobile/MobileHeaderMock";
 import { NetProfitLineCarousel } from "@/components/mobile/NetProfitLineCarousel";
 import { PeriodTabsMock } from "@/components/mobile/PeriodTabsMock";
+import { BrandKpiCarousel } from "@/components/mobile/BrandKpiCarousel";
 import { CircleGauge, Dot } from "lucide-react";
 import { redirect } from "next/navigation";
 import {
@@ -10,6 +11,7 @@ import {
 import {
   formatSidebarUpdateDate,
   getLatestBlueWhaleUscDate,
+  getLast7DaysBrandKpiData,
   getMarketRows,
   getNetProfitKpiSummary,
   getUserHeaderContext,
@@ -17,12 +19,6 @@ import {
   type MarketCode,
   type PeriodCode,
 } from "@/lib/markets/dashboard-data";
-
-const countries = [
-  { name: "Indonesia", value: "43.435", ratio: "23,58%" },
-  { name: "United States", value: "34.471", ratio: "18,72%" },
-  { name: "Japan", value: "25.582", ratio: "13,89%" },
-];
 
 const marketMap: Record<string, { code: MarketCode; label: string }> = {
   overall: { code: "overall", label: "Overall" },
@@ -64,11 +60,13 @@ export default async function MobileMockDashboardPage({
       ? rawPeriod
       : "monthly";
 
-  const [rows, userCtx, uscLatestDateRaw, netProfitKpi] = await Promise.all([
+  const [rows, userCtx, uscLatestDateRaw, netProfitKpi, kpiLast7Days] =
+    await Promise.all([
     getMarketRows(market.code, period),
     getUserHeaderContext(),
     getLatestBlueWhaleUscDate(),
     getNetProfitKpiSummary(market.code, period),
+    getLast7DaysBrandKpiData(market.code),
   ]);
   const dataUpdateLabel = uscLatestDateRaw
     ? formatSidebarUpdateDate(uscLatestDateRaw)
@@ -174,60 +172,11 @@ export default async function MobileMockDashboardPage({
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                User Retention Cohorts
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Performing +6.1%
-              </p>
-            </div>
-            <button
-              type="button"
-              className="rounded-full border border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:border-slate-600 dark:text-slate-200"
-            >
-              Get Report
-            </button>
-          </div>
-
-          <div className="mt-4 grid grid-cols-10 gap-1.5">
-            {summary.retentionBars.map((level, i) => {
-              return (
-                <span
-                  key={i}
-                  className={`h-3 rounded-[4px] ${
-                    level === "strong"
-                      ? "bg-[#0d244a] dark:bg-amber-300"
-                      : level === "mid"
-                        ? "bg-orange-300 dark:bg-orange-500"
-                        : "bg-slate-200 dark:bg-slate-700"
-                  }`}
-                />
-              );
-            })}
-          </div>
-
-          <div className="mt-4 flex items-end justify-between">
-            <p className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {summary.totalProfit === 0
-                ? "0%"
-                : `${Math.max(Math.min(Math.round(summary.totalProfit / 1000), 99), 1)}%`}
-            </p>
-            <div className="space-y-1 text-right text-[11px] text-slate-500 dark:text-slate-400">
-              {countries.map((country) => (
-                <p key={country.name}>
-                  {country.name}:{" "}
-                  <span className="font-semibold text-slate-700 dark:text-slate-200">
-                    {country.value}
-                  </span>{" "}
-                  ({country.ratio})
-                </p>
-              ))}
-            </div>
-          </div>
-        </section>
+        <BrandKpiCarousel
+          brands={kpiLast7Days.brands}
+          points={kpiLast7Days.points}
+          dateKeys={kpiLast7Days.dateKeys}
+        />
       </div>
     </div>
   );

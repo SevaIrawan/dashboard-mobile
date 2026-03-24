@@ -8,6 +8,9 @@ type MarketRow = {
   line: string | null;
   cases_bets: number | null;
   deposit_cases: number | null;
+  deposit_amount: number | null;
+  withdraw_cases: number | null;
+  withdraw_amount: number | null;
   net_profit: number | null;
   valid_amount: number | null;
   days_inactive: number | null;
@@ -54,7 +57,9 @@ async function fetchMarketRows(
   // Pilih kolom secukupnya agar query ringan.
   const { data, error } = await supabase
     .from(tableName)
-    .select("line,cases_bets,deposit_cases,net_profit,valid_amount,days_inactive,date")
+    .select(
+      "line,cases_bets,deposit_cases,deposit_amount,withdraw_cases,withdraw_amount,net_profit,valid_amount,days_inactive,date",
+    )
     .gte("date", startDate);
 
   if (error || !data) return [];
@@ -422,5 +427,113 @@ export function summarizeRows(rows: MarketRow[]) {
     topLines,
     retentionBars,
   };
+}
+
+export type Last7DaysBrandPoint = {
+  date: string;
+  line: string;
+  deposit_cases: number;
+  deposit_amount: number;
+  withdraw_cases: number;
+  withdraw_amount: number;
+  net_profit: number;
+};
+
+export type Last7DaysBrandKpiData = {
+  brands: string[];
+  points: Last7DaysBrandPoint[];
+  dateKeys: string[];
+};
+
+type KpiRawRow = {
+  date: string | null;
+  line: string | null;
+  deposit_cases: number | null;
+  deposit_amount: number | null;
+  withdraw_cases: number | null;
+  withdraw_amount: number | null;
+  net_profit: number | null;
+};
+
+async function fetchKpiRowsInRange(
+  tableName: string,
+  from: Date,
+  to: Date,
+): Promise<KpiRawRow[]> {
+  const supabase = await createServerSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from(tableName)
+    .select(
+      "date,line,deposit_cases,deposit_amount,withdraw_cases,withdraw_amount,net_profit",
+    )
+    .gte("date", toDateKey(from))
+    .lte("date", toDateKey(to));
+  if (error || !data) return [];
+  return data as KpiRawRow[];
+}
+
+function dateRangeKeys(from: Date, to: Date): string[] {
+  const keys: string[] = [];
+  let cursor = new Date(from.getTime());
+  while (cursor.getTime() <= to.getTime()) {
+    keys.push(toDateKey(cursor));
+    cursor = addDays(cursor, 1);
+  }
+  return keys;
+}
+
+export async function getLast7DaysBrandKpiData(
+  market: MarketCode,
+): Promise<Last7DaysBrandKpiData> {
+  const tables = tableNamesForMarket(market);
+  const latestDates = await Promise.all(tables.map((t) => fetchLatestDateFromTable(t)));
+  const validLatestDates = latestDates.filter((d): d is Date => d !== null);
+  if (validLatestDates.length === 0) {
+    return { brands: [], points: [], dateKeys: [] };
+  }
+
+  const latestDate = validLatestDates.reduce((acc, curr) =>
+    curr.getTime() > acc.getTime() ? curr : acc,
+  );
+  const from = addDays(latestDate, -6);
+  const to = latestDate;
+  const dateKeys = dateRangeKeys(from, to);
+
+  const rowsPerTable = await Promise.all(
+    tables.map((t) => fetchKpiRowsInRange(t, from, to)),
+  );
+  const rows = rowsPerTable.flat();
+  const aggregate = new Map<string, Last7DaysBrandPoint>();
+
+  for (const row of rows) {
+    if (!row.date) continue;
+    const date = String(row.date).slice(0, 10);
+    const line = (row.line ?? "Unknown").trim() || "Unknown";
+    const key = `${date}__${line}`;
+    const curr = aggregate.get(key) ?? {
+      date,
+      line,
+      deposit_cases: 0,
+      deposit_amount: 0,
+      withdraw_cases: 0,
+      withdraw_amount: 0,
+      net_profit: 0,
+    };
+    curr.deposit_cases += toNumber(row.deposit_cases);
+    curr.deposit_amount += toNumber(row.deposit_amount);
+    curr.withdraw_cases += toNumber(row.withdraw_cases);
+    curr.withdraw_amount += toNumber(row.withdraw_amount);
+    curr.net_profit += toNumber(row.net_profit);
+    aggregate.set(key, curr);
+  }
+
+  const points = [...aggregate.values()].sort((a, b) => {
+    if (a.line === b.line) return a.date.localeCompare(b.date);
+    return a.line.localeCompare(b.line);
+  });
+
+  const brands = Array.from(new Set(points.map((p) => p.line)));
+  return { brands, points, dateKeys };
 }
 

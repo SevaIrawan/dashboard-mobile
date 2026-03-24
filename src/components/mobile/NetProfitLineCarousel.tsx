@@ -28,7 +28,9 @@ export function NetProfitLineCarousel({
   metaComparisonPositive = true,
 }: Props) {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const idleTimerRef = useRef<number | null>(null);
   const [index, setIndex] = useState(0);
+  const [autoplayEnabled, setAutoplayEnabled] = useState(false);
   const maxIndex = Math.max(items.length - 2, 0);
 
   function scrollNodeToIndex(nextIndex: number) {
@@ -49,8 +51,24 @@ export function NetProfitLineCarousel({
     scrollNodeToIndex(idx);
   }
 
+  function armAutoplayAfterIdle() {
+    setAutoplayEnabled(false);
+    if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = window.setTimeout(() => {
+      setAutoplayEnabled(true);
+    }, 20000);
+  }
+
   useEffect(() => {
-    if (items.length <= 2) return;
+    armAutoplayAfterIdle();
+    return () => {
+      if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (items.length <= 2 || !autoplayEnabled) return;
     const id = window.setInterval(() => {
       setIndex((prev) => {
         const next = prev >= maxIndex ? 0 : prev + 1;
@@ -59,7 +77,7 @@ export function NetProfitLineCarousel({
       });
     }, 3000);
     return () => window.clearInterval(id);
-  }, [items.length, maxIndex, controlsAtTop]);
+  }, [items.length, maxIndex, controlsAtTop, autoplayEnabled]);
 
   if (items.length === 0) {
     return (
@@ -94,7 +112,10 @@ export function NetProfitLineCarousel({
           <div className="flex justify-end gap-1.5">
             <button
               type="button"
-              onClick={() => scrollToIndex(index - 1)}
+              onClick={() => {
+                armAutoplayAfterIdle();
+                scrollToIndex(index - 1);
+              }}
               className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300"
               aria-label="Scroll kiri"
             >
@@ -102,7 +123,10 @@ export function NetProfitLineCarousel({
             </button>
             <button
               type="button"
-              onClick={() => scrollToIndex(index + 1)}
+              onClick={() => {
+                armAutoplayAfterIdle();
+                scrollToIndex(index + 1);
+              }}
               className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300"
               aria-label="Scroll kanan"
             >
@@ -116,6 +140,8 @@ export function NetProfitLineCarousel({
         <div
           ref={trackRef}
           className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onTouchStart={armAutoplayAfterIdle}
+          onPointerDown={armAutoplayAfterIdle}
         >
           {items.map((item) => {
             const positive = item.comparisonPct >= 0;
@@ -155,7 +181,10 @@ export function NetProfitLineCarousel({
         <div className="mt-2 flex justify-end gap-1.5">
           <button
             type="button"
-            onClick={() => scrollToIndex(index - 1)}
+            onClick={() => {
+              armAutoplayAfterIdle();
+              scrollToIndex(index - 1);
+            }}
             className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300"
             aria-label="Scroll kiri"
           >
@@ -163,7 +192,10 @@ export function NetProfitLineCarousel({
           </button>
           <button
             type="button"
-            onClick={() => scrollToIndex(index + 1)}
+            onClick={() => {
+              armAutoplayAfterIdle();
+              scrollToIndex(index + 1);
+            }}
             className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300"
             aria-label="Scroll kanan"
           >

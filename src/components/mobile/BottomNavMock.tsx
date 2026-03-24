@@ -2,21 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  BarChart3,
   ChevronDown,
   House,
-  MessageCircle,
   Settings,
-  Users,
   X,
 } from "lucide-react";
 import { useTheme } from "@/components/providers/ThemeProvider";
 
 const items = [
   { id: "dashboard", label: "Dashboard", icon: House },
-  { id: "orders", label: "Orders", icon: BarChart3 },
-  { id: "customers", label: "Customers", icon: Users },
-  { id: "message", label: "Message", icon: MessageCircle },
   { id: "settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -56,7 +50,7 @@ export function BottomNavMock() {
       className="sticky bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-sm dark:border-slate-700 dark:bg-[#0f172a]/95"
       aria-label="Bottom navigation"
     >
-      <ul className="grid grid-cols-5 gap-1">
+      <ul className="grid grid-cols-2 gap-1">
         {items.map((item) => {
           const Icon = item.icon;
           const selected =
