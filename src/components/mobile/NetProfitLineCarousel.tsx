@@ -14,41 +14,52 @@ function formatPct(v: number): string {
 
 type Props = {
   items: NetProfitLineKpi[];
+  controlsAtTop?: boolean;
+  metaLabel?: string;
+  metaComparison?: string;
+  metaComparisonPositive?: boolean;
 };
 
-export function NetProfitLineCarousel({ items }: Props) {
+export function NetProfitLineCarousel({
+  items,
+  controlsAtTop = false,
+  metaLabel,
+  metaComparison,
+  metaComparisonPositive = true,
+}: Props) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [index, setIndex] = useState(0);
-  const cardWidth = 118;
+  const maxIndex = Math.max(items.length - 2, 0);
 
-  const maxIndex = Math.max(items.length - 1, 0);
-
-  function scrollToIndex(nextIndex: number) {
-    const idx = Math.max(0, Math.min(maxIndex, nextIndex));
-    setIndex(idx);
-    if (!trackRef.current) return;
-    trackRef.current.scrollTo({
-      left: idx * (cardWidth + 8),
+  function scrollNodeToIndex(nextIndex: number) {
+    const track = trackRef.current;
+    if (!track) return;
+    const cards = track.querySelectorAll("article");
+    const target = cards.item(nextIndex) as HTMLElement | null;
+    if (!target) return;
+    track.scrollTo({
+      left: target.offsetLeft,
       behavior: "smooth",
     });
   }
 
+  function scrollToIndex(nextIndex: number) {
+    const idx = Math.max(0, Math.min(maxIndex, nextIndex));
+    setIndex(idx);
+    scrollNodeToIndex(idx);
+  }
+
   useEffect(() => {
-    if (items.length <= 3) return;
+    if (items.length <= 2) return;
     const id = window.setInterval(() => {
       setIndex((prev) => {
         const next = prev >= maxIndex ? 0 : prev + 1;
-        if (trackRef.current) {
-          trackRef.current.scrollTo({
-            left: next * (cardWidth + 8),
-            behavior: "smooth",
-          });
-        }
+        scrollNodeToIndex(next);
         return next;
       });
     }, 3000);
     return () => window.clearInterval(id);
-  }, [items.length, maxIndex]);
+  }, [items.length, maxIndex, controlsAtTop]);
 
   if (items.length === 0) {
     return (
@@ -60,6 +71,47 @@ export function NetProfitLineCarousel({ items }: Props) {
 
   return (
     <div>
+      {controlsAtTop && items.length > 2 ? (
+        <div className="mb-2 flex items-end justify-between gap-2">
+          <div className="min-w-0">
+            {metaLabel ? (
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                {metaLabel}
+              </p>
+            ) : null}
+            {metaComparison ? (
+              <p
+                className={`mt-0.5 text-[11px] font-semibold ${
+                  metaComparisonPositive
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-600 dark:text-red-400"
+                }`}
+              >
+                {metaComparison}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex justify-end gap-1.5">
+            <button
+              type="button"
+              onClick={() => scrollToIndex(index - 1)}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300"
+              aria-label="Scroll kiri"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToIndex(index + 1)}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300"
+              aria-label="Scroll kanan"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="relative">
         <div
           ref={trackRef}
@@ -70,7 +122,7 @@ export function NetProfitLineCarousel({ items }: Props) {
             return (
               <article
                 key={item.label}
-                className="w-[118px] shrink-0 snap-start rounded-2xl border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800"
+                className="w-[calc((100%-0.5rem)/2)] min-w-[calc((100%-0.5rem)/2)] shrink-0 snap-start rounded-2xl border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800"
               >
                 <p className="truncate text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-300">
                   {item.label}
@@ -99,7 +151,7 @@ export function NetProfitLineCarousel({ items }: Props) {
         </div>
       </div>
 
-      {items.length > 3 ? (
+      {!controlsAtTop && items.length > 2 ? (
         <div className="mt-2 flex justify-end gap-1.5">
           <button
             type="button"

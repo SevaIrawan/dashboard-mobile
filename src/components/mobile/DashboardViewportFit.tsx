@@ -54,8 +54,8 @@ export function DashboardViewportFit({ children }: Props) {
 
   if (isMobileViewport) {
     return (
-      <div className="app-backdrop flex min-h-[100svh] w-full justify-center overflow-x-hidden supports-[min-height:100dvh]:min-h-[100dvh]">
-        <div className="flex min-h-[100svh] w-full max-w-[430px] flex-col overflow-visible border-x border-slate-200 bg-[#f5f7fb] shadow-[0_0_40px_rgba(15,23,42,0.2)] supports-[min-height:100dvh]:min-h-[100dvh] dark:border-slate-700 dark:bg-[#0b1220]">
+      <div className="app-backdrop flex h-[100svh] min-h-[100svh] w-full justify-center overflow-x-hidden overflow-y-hidden supports-[height:100dvh]:h-[100dvh] supports-[min-height:100dvh]:min-h-[100dvh]">
+        <div className="flex h-[100svh] min-h-[100svh] w-full max-w-[430px] flex-col overflow-hidden border-x border-slate-200 bg-[#f5f7fb] shadow-[0_0_40px_rgba(15,23,42,0.2)] supports-[height:100dvh]:h-[100dvh] supports-[min-height:100dvh]:min-h-[100dvh] dark:border-slate-700 dark:bg-[#0b1220]">
           {children}
         </div>
       </div>

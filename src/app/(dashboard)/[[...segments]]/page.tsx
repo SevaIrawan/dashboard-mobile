@@ -35,10 +35,10 @@ function formatInt(v: number): string {
   return Math.round(v).toLocaleString("id-ID");
 }
 
-function getMarketCurrency(marketCode: MarketCode): "MYR" | "SGD" | "USD" {
+function getMarketCurrency(marketCode: MarketCode): "RM" | "SGD" | "USD" {
   if (marketCode === "sgd") return "SGD";
   if (marketCode === "usc") return "USD";
-  return "MYR";
+  return "RM";
 }
 
 type Props = {
@@ -95,30 +95,18 @@ export default async function MobileMockDashboardPage({
               <p className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
                 {currencyCode} {formatInt(netProfitKpi.totalValue)}
               </p>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Net Profit
-              </p>
-              <p
-                className={`mt-0.5 text-[11px] font-semibold ${
-                  netProfitKpi.totalComparisonPct >= 0
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-red-600 dark:text-red-400"
-                }`}
-              >
-                {netProfitKpi.totalComparisonPct >= 0 ? "+" : ""}
-                {netProfitKpi.totalComparisonPct.toFixed(1)}%
-              </p>
             </div>
-            <button
-              type="button"
-              className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-600 dark:text-slate-200"
-            >
-              Details
-            </button>
+            <div className="h-2 w-1" />
           </div>
 
-          <div className="mt-4">
-            <NetProfitLineCarousel items={netProfitKpi.lines} />
+          <div className="mt-2">
+            <NetProfitLineCarousel
+              items={netProfitKpi.lines}
+              controlsAtTop
+              metaLabel="Net Profit"
+              metaComparison={`${netProfitKpi.totalComparisonPct >= 0 ? "+" : ""}${netProfitKpi.totalComparisonPct.toFixed(1)}%`}
+              metaComparisonPositive={netProfitKpi.totalComparisonPct >= 0}
+            />
           </div>
 
           <div className="mt-4 flex justify-center">
@@ -131,9 +119,12 @@ export default async function MobileMockDashboardPage({
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
               Today&apos;s Increase
             </h2>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">
-              37 Members
-            </span>
+            <button
+              type="button"
+              className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-600 dark:text-slate-200"
+            >
+              Details
+            </button>
           </div>
 
           <div className="mt-4 grid grid-cols-[1fr_auto] gap-4">
